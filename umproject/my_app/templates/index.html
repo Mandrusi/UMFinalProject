@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>URL Parser</title>
+  </head>
+  <body>
+    <h1>Enter a URL</h1>
+    <form method="POST">
+      {% csrf_token %}
+      <label for="url">URL:</label>
+      <input type="text" name="url" id="url" required>
+      <button type="submit">Search</button>
+    </form>
+    <nav>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/images/">Images</a></li>
+      </ul>
+    </nav>
+  </body>
+</html>

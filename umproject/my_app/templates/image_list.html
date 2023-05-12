@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h1>All Images</h1>
+
+  {% for image in images %}
+
+{% endfor %}
+
+  {% for img in images %}
+    {% if img.image_format %}
+        <img src="{{ img.image_data_uri }}" alt="{{ img.filename }}" title="{{ img.filename }}" width="50" height="50"><br>
+        {{ img.filename }}<br>
+    {% else %}
+      <img src="{{ img.image.url }}" alt="BBB {{ img.filename }}">
+    {% endif %}
+  {% empty %}
+    <p>No images found</p>
+  {% endfor %}
+{% endblock %}
+
