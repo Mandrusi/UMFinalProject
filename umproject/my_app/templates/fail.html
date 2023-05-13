@@ -1,16 +1,24 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Fail</title>
-  </head>
-  <body>
-    <h1>An error was encountered</h1>
-    <nav>
-      <ul>
-        <li><a href="/">Home</a></li>
-        <li><a href="/images/">Images</a></li>
-        <li><a href="/past_searches/">Searches</a></li>
-      </ul>
-    </nav>
-  </body>
-</html>
+{% extends 'base.html' %}
+
+{% block title %}
+  Fail
+{% endblock %}
+
+{% block top_of_page %}
+  <h1>Error</h1>
+{% endblock %}
+
+{% block content %}
+
+  <table>
+    <tr>
+        <td style="padding-right: 8px; font-weight: 600;">
+            An error was encountered:
+        </td>
+        <td style="color: #CCCCCC;">
+            {{ error_message }}
+        </td>
+    </tr>
+  </table>
+
+{% endblock %}
