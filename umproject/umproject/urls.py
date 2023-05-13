@@ -25,4 +25,6 @@ urlpatterns = [
     path('',views.index, name="homepage"),
     path('images/', views.image_list, name='image_list'),
     path('success/', views.success, name='success'),
+    path('past_searches/', views.past_searches, name='past_searches'),
+    path('past_search.html', views.past_search, name='past_search'),
 ]

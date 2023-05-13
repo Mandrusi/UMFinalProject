@@ -1,16 +1,18 @@
 {% extends 'base.html' %}
 
-{% block content %}
+{% block title %}
+  All Images
+{% endblock %}
+
+{% block top_of_page %}
   <h1>All Images</h1>
+{% endblock %}
 
-  {% for image in images %}
-
-{% endfor %}
-
+{% block content %}
   {% for img in images %}
-    {% if img.image_format %}
-        <img src="{{ img.image_data_uri }}" alt="{{ img.filename }}" title="{{ img.filename }}" width="50" height="50"><br>
-        {{ img.filename }}<br>
+    {% if img.content_type %}
+      <img src="{{ img.image_data_uri }}" alt="{{ img.filename }}" title="{{ img.filename }}" width="50" height="50"><br>
+      {{ img.filename }}<br>
     {% else %}
       <img src="{{ img.image.url }}" alt="BBB {{ img.filename }}">
     {% endif %}
@@ -18,4 +20,3 @@
     <p>No images found</p>
   {% endfor %}
 {% endblock %}
-

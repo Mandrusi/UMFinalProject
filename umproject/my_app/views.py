@@ -1,17 +1,15 @@
-import requests
-from django.shortcuts import render
-from bs4 import BeautifulSoup
-from urllib.parse import urlparse, urljoin
+import requests # Handles http requests
+import base64 # base64 encoding for sending BLOBs to template as text
 
-from django.http import HttpResponse
+from io import BytesIO # Handle binary data to save img_data to database
+from .models import Image, Search # Search and Image models (objects for database)
+# from PIL import Image as PILImage # For raster based image manipulation
 
-import mimetypes
-from io import BytesIO
-from .models import Image, Search
-from PIL import Image as PILImage
-
-import base64
-import tempfile
+from django.shortcuts import render # For rendering templates with context data and returning HTTP responses
+from bs4 import BeautifulSoup # For parsing html content
+from urllib.parse import urljoin # For combining relative references to full URL
+from django.http import HttpResponse # For determining HttpResponse types
+from django.utils import timezone # For displaying timezone
 
 def index(request):
     if request.method == 'POST':
@@ -91,11 +89,8 @@ def index(request):
             if not img_url.startswith('http'):
                 img_url = urljoin(url, img_url)
            
-            parsed_url = urlparse(img_url)
-            # sometimes the url contains ? and other extraneous data after the filename, so strip everything after ?
-            filename = img_url.split('?')[0]
-            # split remaining url by / and pick the last (-1) element, which is just the filename
-            filename = filename.split('/')[-1]
+            # parsed_url = urlparse(img_url)
+            
             
             # Retrieve the image data from the URL
             try:
@@ -123,7 +118,7 @@ def index(request):
 
             print(f"DEBUG - got img_data from BytesIO, img_data={img_data}")
 
-            img_obj = Image(search=search, url=img_url, filename=filename, image=img_data.getvalue()) 
+            img_obj = Image(search=search, url=img_url, image=img_data.getvalue(), content_type=content_type) 
             print(f"DEBUG - did Image() call") 
             img_obj.save()
             print(f"DEBUG - did img_obj.save")
@@ -140,22 +135,58 @@ def image_list(request):
     for image in images:
         img_data = image.image
        
-        #image.image_format = "image/svg+xml"
-
-        content_type, _ = mimetypes.guess_type(image.filename)
-        if content_type is None:
-            if img_data.startswith(b'GIF89a'):
-                content_type = "image/gif"
-            elif img_data[6:10] == b'JFIF':
-                content_type = "image/jpeg"
-            else: 
-                content_type = "application/octet-stream"
-                print(f"DEBUG - filename {image.filename} app/octet-stream img_data = {img_data[1:100]}")
-        image.image_format = content_type
-
-        image.image_data_uri = f"data:{image.image_format};base64,{base64.b64encode(img_data).decode('utf-8')}"
-    return render(request, 'image_list.html', {'images': images})
+        # sometimes the url contains ? and other extraneous data after the filename, so strip everything after ?
+        filename = image.url.split('?')[0]
+        # split remaining url by / and pick the last (-1) element, which is just the filename
+        filename = filename.split('/')[-1]
+        image.filename = filename
+        image.image_data_uri = f"data:{image.content_type};base64,{base64.b64encode(img_data).decode('utf-8')}"
+    return render(request, 'image_list.html', {'images': images}, )
 #        image.image_format = "image/jpeg"
+
+def past_searches(request):
+    # Get all past searches, format local timestamp, and send to template
+    searches = Search.objects.all()
+    for search in searches:
+        local_tz = timezone.get_current_timezone()
+        local_dt = search.timestamp.astimezone(local_tz)
+        search.timestampadjuster = local_dt.strftime('%Y-%m-%d %H:%M:%S')
+    return render(request, 'past_searches.html', {'searches': searches},) # Render list of searches to template
+    
+def past_search(request):
+    try:
+        # Check if an id parameter was sent (e.g. http://127.0.0.1:8000/past_searches?id=5) 
+        search_id_for_page = request.GET['id']
+    except KeyError:
+        # No id sent to this as an attribute to the URL
+        return render(request, 'fail.html')
+    
+    # An id was sent, so send all the images for that search id to past_search.html
+#    searches = Search.objects.filter(id=search_id_for_page)
+ #   for search in searches:
+  #      search_url = search.url
+
+    try:
+        search = Search.objects.get(id=search_id_for_page)
+        local_tz = timezone.get_current_timezone()
+        local_dt = search.timestamp.astimezone(local_tz)
+        search.timestamp_local = local_dt.strftime('%Y-%m-%d %H:%M:%S')
+
+    except Search.DoesNotExist:
+        return render(request, 'fail.html')
+    
+    images = Image.objects.filter(search_id=search_id_for_page)
+    for image in images:
+        img_data = image.image
+        # sometimes the url contains ? and other extraneous data after the filename, so strip everything after ?
+        filename = image.url.split('?')[0]
+        # split remaining url by / and pick the last (-1) element, which is just the filename
+        filename = filename.split('/')[-1]
+        image.filename = filename
+        image.image_data_uri = f"data:{image.content_type};base64,{base64.b64encode(img_data).decode('utf-8')}"
+    print(f"DEBUG - returning past_search.html")
+    # return render(request, 'past_search.html', {'images': images}, {'search_url': search_url})
+    return render(request, 'past_search.html', {'images': images, 'search_url': search.url, 'search_timestamp': search.timestamp_local})
 
 def success(request):
     return render(request, 'success.html')
