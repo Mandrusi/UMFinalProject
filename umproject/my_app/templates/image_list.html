@@ -7,16 +7,103 @@
 {% block top_of_page %}
   <h1>All Images</h1>
 {% endblock %}
+{% block head %}
+<style>
+    html, body, h1, h2, section, div {
+        margin:0;
+        padding:0;
+    }
 
+    body {
+        max-width:76.5rem;
+        padding:clamp(0.5rem, 2vw, 2rem);
+        margin:auto;
+    }
+
+    .gallery {
+        margin-top:5px;
+    }
+
+    .gallery > div {
+        columns:8;
+        gap:1.25rem;
+        padding-top:1.25rem;
+    }
+
+    .gallery img {
+        display:block;
+        width:100%;
+        margin-bottom:1.25rem;
+        height:100%;
+    }
+    @media (max-width:48rem) {
+      .gallery > div {
+        columns:7;
+      }
+    }
+    @media (max-width:44rem) {
+      .gallery > div {
+        columns:6;
+      }
+    }
+
+    @media (max-width:40rem) {
+        .gallery > div {
+        columns:5;
+        }
+    }
+
+    @media (max-width:36rem) {
+        .gallery > div {
+        columns:4;
+        }
+    }
+    @media (max-width:32rem) {
+        .gallery > div {
+        columns:3;
+        }
+    }
+
+    @media (max-width:28rem) {
+        .gallery > div {
+        columns:2;
+        }
+    }
+
+    .image-container {
+        display: inline-block;
+        width: 100%;
+    }
+
+    .image-container img {
+        display: block;
+        width: 100%;
+        margin: 0 auto;
+    }
+
+    .image-container .caption {
+        display: block;
+        margin-top: 5px;
+        transform: skew(-6deg);
+        font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+  
 {% block content %}
+<section class="gallery">
+  <div>
   {% for img in images %}
     {% if img.content_type %}
-      <img src="{{ img.image_data_uri }}" alt="{{ img.filename }}" title="{{ img.filename }}" width="50" height="50"><br>
-      {{ img.filename }}<br>
-    {% else %}
-      <img src="{{ img.image.url }}" alt="BBB {{ img.filename }}">
+    <div class="image-container">
+      <img src="{{ img.image_data_uri }}" alt="{{ img.filename }}" title="{{ img.filename }}"><br>
+    </div>
     {% endif %}
   {% empty %}
     <p>No images found</p>
   {% endfor %}
+</div>
+
+</section>
 {% endblock %}

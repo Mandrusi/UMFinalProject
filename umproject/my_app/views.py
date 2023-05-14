@@ -22,7 +22,12 @@ def index(request):
         url_with_scheme = f"{scheme}://{parsed_url.netloc}{parsed_url.path}" # Rebuild URL
 
         # Get HTML content of the URL, but handle redirects manually, to update url to new location
-        response = requests.get(url_with_scheme, allow_redirects=False)
+        try:
+            response = requests.get(url_with_scheme, allow_redirects=False)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            print(f"Error trying to get {url_with_scheme}: {e}")
+            return render(request, 'fail.html',{'error_message': f"Failed to get {url_with_scheme}"})
 
         print(f"DEBUG - in index(), returned from requests.get with response={response}")
 
