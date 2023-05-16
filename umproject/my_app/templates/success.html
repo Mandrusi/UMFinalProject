@@ -80,28 +80,29 @@ Success
 <table>
     <tr>
         <td style="padding-right: 8px; font-weight: 600;">
-            Web page request:
+            Web page requested:
         </td>
         <td style="color: #CCCCCC;">
             {{ search_url }}
         </td>
     </tr>
     <tr>
+        <td style="padding-right: 12px; font-weight: 600;">
+            Number of images stored:
+        </td>
+        <td style="color: #CCCCCC;">
+            {{ images|length }}
+        </td>
+    </tr>
+    <tr>
         <td style="padding-right: 8px; font-weight: 600;">
-            Images archived:
+            Date & time archived:
         </td>
         <td style="color: #CCCCCC;">
             {{ search_timestamp }}
         </td>
     </tr>
-    <tr>
-        <td style="padding-right: 12px; font-weight: 600;">
-            Number of images:
-        </td>
-        <td style="color: #CCCCCC;">
-            {{ images|length }}
-        </td>
-    </tr></table>
+</table>
 <br>
 <table>
     <tr>

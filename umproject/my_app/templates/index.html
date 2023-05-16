@@ -1,22 +1,62 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>URL Parser</title>
-  </head>
-  <body>
-    <h1>Enter a URL</h1>
-    <form method="POST">
-      {% csrf_token %}
-      <label for="url">URL:</label>
-      <input type="text" name="url" id="url" required>
-      <button type="submit">Search</button>
-    </form>
-    <nav>
-      <ul>
-        <li><a href="/">Home</a></li>
-        <li><a href="/show_all_images/">Images</a></li>
-        <li><a href="/past_searches/">Searches</a></li>
-      </ul>
-    </nav>
-  </body>
-</html>
+{% extends 'base.html' %}
+
+{% block title %}
+  Home
+{% endblock %}
+
+{% block head %}
+<style>
+#above-footer {
+  position: absolute;
+  bottom: 50px; /* Adjust this value as needed */
+  left: 0;
+  width: 100%;
+  color: white
+  background-color: #000000;
+  padding: 20px;
+  text-align: center;
+}
+</style>
+{% endblock %}
+
+{% block top_of_page %}
+  <h1>Home</h1>
+{% endblock %}
+
+{% block content %}
+
+<table>
+  <tr>
+    <td style="padding-right: 12px; font-weight: 600;">
+        Pages scraped:
+    </td>
+    <td style="color: #CCCCCC;">
+        {{ number_of_searches }}
+    </td>
+  </tr>
+   <tr>
+      <td style="padding-right: 8px; font-weight: 600;">
+          Images archived:
+      </td>
+      <td style="color: #CCCCCC;">
+          {{ number_of_images }}
+      </td>
+  </tr>
+</table>
+
+<section id="above-footer">
+  <!-- Content to be displayed above the footer -->
+  <table><tr><td width="120">
+    <img src="/static/favicon/android-chrome-192x192.png" width="96" height="96">
+  </td><td align="left">
+    <h3>Mark Andrusiak</h3>
+    <p>Webscraping web app using Django/MySQL as job candidacy project for Umich's ITS, May 2023</p>
+  
+  </td></tr></table>
+</section>
+{% endblock %}
+
+
+
+
+

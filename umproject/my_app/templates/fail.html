@@ -9,16 +9,19 @@
 {% endblock %}
 
 {% block content %}
-
   <table>
     <tr>
-        <td style="padding-right: 8px; font-weight: 600;">
-            An error was encountered:
-        </td>
-        <td style="color: #CCCCCC;">
-            {{ error_message }}
-        </td>
+      <td>
+        <span style="font-size: xx-large;">
+          ⚠️
+        </span> 
+      </td>
+      <td style="padding-top: 8px; padding-right: 8px; font-weight: 600;">
+          An error was encountered:
+      </td>
+      <td style="padding-top: 8px; color: #CCCCCC;">
+          {{ error_message }}
+      </td>
     </tr>
   </table>
-
 {% endblock %}

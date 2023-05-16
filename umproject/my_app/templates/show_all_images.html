@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 
 {% block title %}
-  All Images
+  Show All Images
 {% endblock %}
 
 {% block top_of_page %}
-  <h1>All Images</h1>
+  <h1>Show All Images</h1>
 {% endblock %}
 {% block head %}
 <style>
@@ -15,7 +15,7 @@
     }
 
     body {
-        max-width:76.5rem;
+        max-width:77rem;
         padding:clamp(0.5rem, 2vw, 2rem);
         margin:auto;
     }
@@ -25,7 +25,7 @@
     }
 
     .gallery > div {
-        columns:8;
+        columns:11;
         gap:1.25rem;
         padding-top:1.25rem;
     }
@@ -36,35 +36,50 @@
         margin-bottom:1.25rem;
         height:100%;
     }
-    @media (max-width:48rem) {
+    @media (max-width:70rem) {
+      .gallery > div {
+        columns:10;
+      }
+    }
+    @media (max-width:63rem) {
+      .gallery > div {
+        columns:9;
+      }
+    }
+    @media (max-width:54rem) {
+      .gallery > div {
+        columns:8;
+      }
+    }
+    @media (max-width:49rem) {
       .gallery > div {
         columns:7;
       }
     }
-    @media (max-width:44rem) {
+    @media (max-width:42rem) {
       .gallery > div {
         columns:6;
       }
     }
 
-    @media (max-width:40rem) {
+    @media (max-width:35rem) {
         .gallery > div {
         columns:5;
         }
     }
 
-    @media (max-width:36rem) {
+    @media (max-width:28rem) {
         .gallery > div {
         columns:4;
         }
     }
-    @media (max-width:32rem) {
+    @media (max-width:21rem) {
         .gallery > div {
         columns:3;
         }
     }
 
-    @media (max-width:28rem) {
+    @media (max-width:14rem) {
         .gallery > div {
         columns:2;
         }

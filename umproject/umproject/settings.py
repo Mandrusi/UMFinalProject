@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -121,11 +122,17 @@ USE_I18N = True
 
 USE_TZ = True
 
+# WebDriver executable locations:
+CHROME_DRIVER_EXECUTABLE_LOCATION = r"C:\Python311\Scripts\chromedriver.exe"
+FIREFOX_DRIVER_EXECUTABLE_LOCATION = r"C:\Python311\Scripts\geckodriver.exe"
+FIREFOX_BROWSER_EXECUTABLE_LOCATION = r"C:\Program Files (x86)\Mozilla Firefox\firefox.exe"
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
