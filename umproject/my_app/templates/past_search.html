@@ -19,6 +19,7 @@ Past Search
 
     .gallery {
         margin-top:5px;
+        word-wrap: break-word;
     }
 
     .gallery > div {
@@ -129,7 +130,7 @@ Past Search
     <div>
         {% for img in images %}
         <div class="image-container">
-            <img src="{{ img.image_data_uri }}" alt="{{ img.filename }}" title="{{ img.full_filename }}"  onclick="debugBase64('{{ img.image_data_uri}}')">
+            <img src="{{ img.image_data_uri }}" alt="{{ img.filename }}" title="{{ img.url }}"  onclick="debugBase64('{{ img.image_data_uri}}')">
             <p class="caption">{{ img.filename }}</p>
         </div>
       <br>

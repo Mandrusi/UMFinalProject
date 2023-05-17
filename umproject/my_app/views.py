@@ -24,6 +24,8 @@ def debug(str):
     return
 
 # Handler function to get_web_response for index view
+# Allows extraction of the final URL and the associated response, or handles and logs any errors that occur
+# during the process.
 def get_web_response_handler(request, url_with_scheme, url_entered):
     # Get HTML content of the URL, but handle redirects manually, to update url to new location
     try:
@@ -31,7 +33,7 @@ def get_web_response_handler(request, url_with_scheme, url_entered):
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
         debug(f"Error trying to get {url_with_scheme}: {e}")
-        return None, None, f"Failed to get {url_with_scheme}"
+        return None, None, f"Failed to get page: {e}"
 
     debug(f"in index(), returned from requests.get with response={response}")
 
@@ -48,7 +50,7 @@ def get_web_response_handler(request, url_with_scheme, url_entered):
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             debug(f"Error trying to redirect to {response.headers['Location']}: {e}")
-            return None, None, f"Failed to redirect from {url_entered}, to {url}"
+            return None, None, f"Failed to redirect from {url_entered}, to {url}: {e}"
  
         if response.status_code in {200,201}: # if redirected get() status ok or created (kinda ok)
             debug(f"Successfully redirected to {url}")
@@ -60,81 +62,120 @@ def get_web_response_handler(request, url_with_scheme, url_entered):
         return render(request, 'fail.html',{'error_message': f"Could not get {url_entered} HttpResponse:{response.status_code}"})
     return url, response, None
 
+# The purpose of this function is to handle the srcset attribute of an img tag, extract the URL-size pairs, and select
+# the URL with the largest size that passes certain checks. It ensures that images with excessive sizes are not chosen
+# and that the selected URL is a valid image.
 def pick_an_image_from_srcset(image_srcset, page_url):
     # an img srcset in html will list URLs of the same image in different sizes,
     # separated by commas, to allow picking the best size for a layout.
     # if we pick an image that's many megabytes, it chokes saving to the database.
-    # so we cap the size at an area of 100,000 pixels, and pick the biggest url in the 
-    # set of images that's under 100,000. if there are none we skip this image.
-    # it can be slow checking a lot of image sizes...if speed was more crucial, maybe
+    # so if the size is capped in retrieve_and_validate_img_handlr(), and we pick the 
+    # biggest image url in the that wasn't filtered out. if there are none we skip this image.
+    # it can be slow checking a lot of image sizes...if speed were more crucial, maybe
     # check just the first and last urls, as they're probably in ascending or descending
     # order by size, so one or the other might fit our criteria. 
 
-    maximum_size_allowed = 100000    
+    debug(f"In pick_an_image_from_srcset(), image_srcset={image_srcset} page_url={page_url}")
 
     # sizes = image_srcset.split(',')
     # The split didn't work if srcset URLs contain comma, like 
-    #  "https://www.google.com?TYPE=1,DIR 1x, https://www.google.com?TYPE=2,DIR 1x"
+    #  "https://www.google.com?TYPE=1,DIR 1x, https://www.google.com?TYPE=2,DIR 2x"
     # That's why this findall is used with a wicked regular expression.  
     sizes = re.findall(r'([^,\s][^,]*[^,\s])\s+([^,\s][^,]*[^,\s])', image_srcset)
 
-    biggest_size = None
+    biggest_size = 0
     biggest_url = None
-    for size in sizes:
-        # Get the image URL and size
 
-# Could use some error checking on this request 
-        url_to_check = size[0].strip()
+    #debug(f"in pick_an_image_from_srcset, image_srcset={image_srcset}, page_url={page_url}")
+
+    # Brute force way to parse image_srcset, first break as left and right of ' ',
+    # then if there's another comma, take just the portion right of the comma.
+    # That handles srcsets that have commas within the URLs, not to be confused
+    # with commas separating URL-size pairs, as in: 
+    #  "https://www.google.com?TYPE=1,DIR 1x, https://www.google.com?TYPE=2,DIR 2x"
+    while ' ' in image_srcset: 
+        url_to_check = image_srcset.split(' ')[0]
+        image_srcset = after_substr(image_srcset,' ') # set it to everything after the ' '
+        if ',' in image_srcset:
+            image_srcset = after_substr(image_srcset,',').strip() # now set it to everything after the ','
 
         # Join the web page URL prefix to the image URL if the image URL is a relative link
-        if not url_to_check.startswith('http'):
+        if not url_to_check.startswith('http') and not url_to_check.startswith('data:'):
             url_to_check = urljoin(page_url, url_to_check)
 
-        response = requests.get(url_to_check)
-        image_size_bytes = len(response.content)
-
-        debug(f".....Checking url={url_to_check} size={image_size_bytes}")
-        # Update the biggest area and URL if necessary
-        if image_size_bytes <= maximum_size_allowed and (biggest_size is None or image_size_bytes > biggest_size):
-            biggest_size = image_size_bytes
-            biggest_url = url_to_check
+        response_content, content_type = retrieve_and_validate_img_handler(url_to_check) 
+        if response_content is not None:
+            image_size_bytes = len(response_content)
+            
+            debug(f"url_to_check={url_to_check[:40]}... was size={image_size_bytes}")
+            # Update the biggest area and URL if necessary
+            if image_size_bytes > biggest_size:
+                biggest_size = image_size_bytes
+                biggest_url = url_to_check
 
     if biggest_url is None:
-        debug(f"none of the images were suitable")
+        debug(f"None of the images were suitable")
         return
 
 #    img['src'] = biggest_url
     img_url = biggest_url
-    debug(f"chose best size from srcset, img_url = {img_url}, size={biggest_size}")
+    debug(f"Chose best size from srcset, img_url = {img_url}, size={biggest_size}")
     return img_url
 
-def retrieve_and_validate_img_handler(img_url):
+# return everything after a given substring in a string
+def after_substr(string, substring):
+    index = string.find(substring)
+    if index != -1:
+        return string[index + len(substring):]
+    else:
+        return ""
+
 # Retrieve the image data from the URL
-    try:
-        response = requests.get(img_url)
-        response.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        debug(f"Error retrieving image {img_url}: {e}")
-        return None, None
+def retrieve_and_validate_img_handler(img_url):
+
     # Don't store images in database if over max size, currently 1024576.
     # It can handle bigger, but may affect performance at some level,
     # and that seems like a reasonable limit.
-    maximium_size_to_save = 1024576
+    maximum_size_to_save = 1024576
 
-    image_size_bytes = len(response.content)
-    if image_size_bytes > maximium_size_to_save:
-        return None, None
+    if img_url.split('/')[0] == 'data:image':
+        # If img_url is simply data, like data:image/x-png;base64,iVBORw0KGgoAAAANSUh..., 
+        # then that contains all the data we need without retrieving it from the web.
 
-    # Get image type based on file extension
-    content_type = response.headers.get('content-type')
-    if not content_type.startswith("image/"): # if not an image type of content, skip it
-    #    debug(f"Invalid image content type for {img_url}: {content_type}")
-        return None, None # Not image content_type (maybe "text/html") so skip to next loop iterator
+        debug(f"Using data:image from URL")
+    
+        if len(img_url) > maximum_size_to_save: # Return None if too big
+            return None, None       
 
-    debug(f"content_type: {content_type}")
-    return response, content_type
+        # img_url is of the form "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgA..."
+        
+        content_type = after_substr(img_url,':').split(';')[0] # Extract "image/png" between the first ':' and first ';'
+        base64_string = after_substr(img_url,',') # Extract the base64-encoded data after the first comma
+        
+        image_bytes = base64.b64decode(base64_string) # Convert the base64 string to bytes
+        return image_bytes, content_type
+    else:
+        try:
+            response = requests.get(img_url)
+            response.raise_for_status()
+        except Exception as e:
+            debug(f"Error retrieving image {img_url}: {e}")
+            return None, None
+    
+        if len(response.content) > maximum_size_to_save: # Return None if too big
+            return None, None
 
-# Save the Image object to the database
+        content_type = response.headers.get('content-type')
+        if not content_type.startswith("image/"): # if not an image type of content, skip it
+        #    debug(f"Invalid image content type for {img_url}: {content_type}")
+            return None, None # Not image content_type (maybe "text/html") so skip to next loop iterator
+
+        debug(f"retrieve_and_validate_img_handler() returning content_type: {content_type}")
+        return response.content, content_type
+
+# The purpose of this functtion is to handle the saving of image data into the database. It converts
+# the image data into a `BytesIO` object, generates a unique identifier for the image, creates an `Image`
+# object, and saves it to the database.
 def database_save_handler(image_data, search, img_url, content_type):
     debug(f"In database_save_handler, passed image_data, search (.id={search.id}), img_url={img_url}, content_type={content_type}")
 
@@ -143,15 +184,15 @@ def database_save_handler(image_data, search, img_url, content_type):
     except Exception as e:
         debug(f"Error setting img_data to BytesIO() for {img_url}: {e}")
         return
-    debug(f"got img_data from BytesIO, img_data={img_data}")
+#    debug(f"got img_data from BytesIO, img_data={img_data}")
 
     unique_search_image = str(search.id) + '+' + hashlib.md5(image_data).hexdigest() # search_id + 32-character checksum of image data
 
     try:
         img_obj = Image(search=search, url=img_url[:255], image=img_data.getvalue(), content_type=content_type[:64], unique_search_image = unique_search_image[:64]) 
-        debug(f"did Image() call") 
+#        debug(f"did Image() call") 
         img_obj.save()
-        debug(f"did img_obj.save")
+#        debug(f"did img_obj.save")
     except Exception as e:
         debug(f"Error saving image to database: {e}")
         return
@@ -170,14 +211,34 @@ def store_image_from_url_in_database(search,image_url,page_url):
         image_url = urljoin(page_url, image_url)
     
     # Call handler function for retrieving and validating img
-    response, content_type = retrieve_and_validate_img_handler(image_url) 
+    response_content, content_type = retrieve_and_validate_img_handler(image_url) 
     
     # If we got a response, call handler function for saving objects to database
-    if response:
-        database_save_handler(response.content, search, image_url, content_type) 
+    if response_content:
+        if len(image_url) > 255:
+            image_url = image_url[:255]
+        database_save_handler(response_content, search, image_url, content_type) 
+
+# 1337
+# https://www.google.com/images/branding/googlelogo/...
+# image/png
+# 2023-05-16 21:15:30.812802
+# 39
+# [BLOB - 13.2 KiB]
+	
+# 1339
+# data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABUA...
+# b'image/png'
+# 2023-05-16 21:15:31.120807
+# 39
+# [BLOB - 315 B]
+
+
 
     return
 
+# The purpose of this function is to use a webdriver to load a web page, capture a screenshot of the page,
+# and process specific elements (img and svg) to save image URLs or image data to the database.
 def scrape_page_with_webdriver(search,url):
 
     debug(f"starting scrape_page_with_webdriver(url), url={url}")
@@ -212,7 +273,7 @@ def scrape_page_with_webdriver(search,url):
 
     # Set window size for webdriver (virtual window size, since it's operating in 'headless' mode)
     browser_width = 1920
-    browser_height = 4000
+    browser_height = 6000
     try:
         driver.set_window_size(browser_width, browser_height)
     except Exception as e:
@@ -239,22 +300,16 @@ def scrape_page_with_webdriver(search,url):
     # except TimeoutException:
     #     return render(request, 'fail.html', {'error_message': f"Timed out waiting for web page elements to load"})
 
-    cntr = 0
     screen_png = driver.get_screenshot_as_png() # saves screenshot of entire page
     screen_whole = PILImage.open(BytesIO(screen_png)) # uses PIL library to open image in memory
     
-    # Save whole screen to a test0.png for debugging purposes
-    screen_whole.save(f'test{cntr}.png')
-    cntr = cntr + 1
-
-    element_ctr = 1
-
     element_tags_to_process = ('img','svg') # WebElement tag_names to process
 
     # For loop does one pass processing all 'img' element types, then a second for all 'svg' element
     # types. Type 'img' provide URLs we can fetch, while 'svg' is used for inline SVG instructions on
     # a web page (draw circle at x,y, etc.), so in that case we crop the area from a screenshot
     for element_tag in element_tags_to_process:
+#        elements = driver.find_elements_by_tag_name(element_tag)
         elements = driver.find_elements(By.TAG_NAME, element_tag)
         debug(f"Number of elements found: {len(elements)}")
 
@@ -278,31 +333,34 @@ def scrape_page_with_webdriver(search,url):
                 debug("Got a stale element or other error processing WebElements from Selenium")
                 continue
 
-            element_ctr += 1
-            if image_srcset and image_srcset != '':
-                debug(f"IMG SRCSET element#{element_ctr} name={element.tag_name} text={element.text} size = {element.size} location = {element.location}")
-                debug(f"           srcset={image_srcset}")
+            debug(f"IMG SRCSET element name={element.tag_name} text={element.text} size = {element.size} location = {element.location}")
+            if element_tag == 'img':
+                # Add url from image_src (if any) to image_srcset (if any), to compare image_srcset images all together
+                
+                if image_src and image_src != '':
+                    if image_srcset and image_srcset == '':
+                        image_srcset = image_src + ' 1x'
+                    else:
+                        image_srcset = image_src + ' 1x,' + image_srcset
 
-                image_src = pick_an_image_from_srcset(image_srcset, url)
+                debug(f"           checking {image_srcset}")
 
-                store_image_from_url_in_database(search, image_src, url)
+                if image_srcset == '':
+                    debug(f"Skipping img element loop (img={img})")
+                    continue  # Skip this image tag since it has no 'src' or 'srcset' attributes
+                else:
+                    image_src = pick_an_image_from_srcset(image_srcset,url)
+                    store_image_from_url_in_database(search, image_src, url)
 
-            elif image_src and image_src != '':
-                # image_filename = image_src.split('/')[-1]
-                debug(f"IMG SRC    element#{element_ctr} name={element.tag_name} text={element.text} size = {element.size} location = {element.location}")
-                debug(f"           image_src={image_src}")
-
-                store_image_from_url_in_database(search, image_src, url)
-
-            elif element.tag_name == 'svg':
-                debug(f"SVG        element#{element_ctr} name={element.tag_name} text={element.text} size = {element.size} location = {element.location}")
+            elif element_tag == 'svg':
                 debug(f"           element={element}")
+                
                 # Calculate crop parameters. floor() and ceil() to round to integers in case it comes back float.
                 left = math.floor(element.location['x'])
                 top = math.floor(element.location['y'])
                 right = left + math.ceil(element.size['width'])
                 bottom = top + math.ceil(element.size['height'])
-                debug(f"           left={left} top={top} right={right} bottom={bottom}")
+                # debug(f"           left={left} top={top} right={right} bottom={bottom}")
 
                 if bottom > browser_height or right > browser_width:
                     debug("            Image to crop is off the page")
@@ -320,10 +378,6 @@ def scrape_page_with_webdriver(search,url):
                 # Get the bytes value from the BytesIO buffer
                 image_data = image_buffer.getvalue()
 
-                #screen_cropped.save(f'test{cntr}.png')
-                debug(f"           Saved to test{cntr}.png")  
-                cntr += 1
-
                 database_save_handler(image_data, search, '(screen shot)', 'image/x-png')
 
                 # Note to self:
@@ -331,7 +385,7 @@ def scrape_page_with_webdriver(search,url):
                 # {base64.b64encode(screen_cropped)[:40]}
                 # {(base64.b64decode(screen_cropped.make_blob())[:40])}
 
-    debug(f"quitting driver, went through {element_ctr} elements")
+    debug(f"quitting driver, went through {len(elements)} elements")
     # Close the browser instance
     try:
         driver.quit()
@@ -342,6 +396,8 @@ def scrape_page_with_webdriver(search,url):
 
     return
 
+# The purpose of this function is to retrieve Search and Image objects from the database, calculate the number
+# of searches and images, and render an HTML template with the information to be displayed in the browser.
 def home_page(request):
     try:
         searches = Search.objects.all()
@@ -351,6 +407,10 @@ def home_page(request):
         return render(request, 'fail.html', {'error_message': f"Error retrieving searches/images from database: {e}"})
     return render(request, 'index.html', {'number_of_searches': len(searches), 'number_of_images': len(images)}) 
 
+# The purpose of this function is to handle form submission, retrieve the URL entered by the user,
+# perform web scraping operations using `BeautifulSoup`, and interact with the database to store the
+# scraped data. It also calls other functions to handle HTTP requests, parse image tags, and perform
+# additional web scraping using a web driver.
 def scrape_web_page(request):
     debug(f"Starting scrape_web_page(request), request={request}")
 
@@ -381,22 +441,76 @@ def scrape_web_page(request):
         img_tags = soup.find_all('img') # Extract all the image URLs from the HTML content
 
         for img in img_tags:
-            if 'srcset' in img.attrs:
-                debug(f"Picking an image from srcset={img['srcset']}")
-                image_url = pick_an_image_from_srcset(img['srcset'],url) # Call handler function for srcset
-            elif 'data-srcset' in img.attrs:
-                debug(f"Picking an image from srcset={img['data-srcset']}")
-                image_url = pick_an_image_from_srcset(img['data-srcset'],url) # Call handler function for srcset
-            elif 'src' in img.attrs and img['src'] != '': # this is a simple <img src=...> tag
-                debug(f"img={img}")
-                debug(f"Using an image from image_url={img['src']}")
-                image_url = img['src']
+            img_str = str(img) # img by itself is an object, and we may want to use its string representation
+
+            debug(f"checking img_str={img_str}")
+
+            # Some sites use data-gl-src, data-gl-srcset, data-getimg, data-hi-res-src, data-full-url, full-src, and
+            # a variety of other non-standard alternatives to src and srcset in image tags. (Example: usatoday.com).
+            # So if we don't find ' src' or ' srcset', we'll use these variants instead if they're present.
+            
+            # Some img tags have a single src= and a multi-image srcset=, so find the single image url, and 
+            # add it to a multi-image srcset url, so we pick an appropriately sized image from all hte candidates 
+
+            if ' src="' in img_str: # priority if it has a space before it, in case of multiple src attributes
+                single_image_url = after_substr(img_str,' src="').split('"')[0]
+            elif 'src="' in img_str:
+                single_image_url = after_substr(img_str,'src="').split('"')[0]
+            elif 'url="' in img_str:
+                single_image_url = after_substr(img_str,'url="').split('"')[0]
+            elif 'img="' in img_str:
+                single_image_url = after_substr(img_str,'img="').split('"')[0]
             else:
-                debug(f"Skipping img in img_tags loop")
+                single_image_url = ''
+
+            if ' srcset="' in img_str: # priority if it has a space before it, in case of multiple srcset attributes
+                multi_image_url = after_substr(img_str,'srcset="').split('"')[0]
+            elif 'srcset="' in img_str:
+                multi_image_url = after_substr(img_str,'srcset="').split('"')[0]
+            else:
+                multi_image_url = ''
+
+            if single_image_url != '':
+                if multi_image_url == '':
+                    multi_image_url = single_image_url + ' 1x'
+                else:
+                    multi_image_url = single_image_url + ' 1x,' + multi_image_url
+
+            if multi_image_url == '':
+                debug(f"Skipping img in img_tags loop (img={img})")
                 continue  # Skip this image tag since it has no 'src' or 'srcset' attributes
 
+            image_url = pick_an_image_from_srcset(multi_image_url,url)
+            
+
+        #     if 'srcset' in img.attrs and img['srcset'] != '':
+        #         image_url = pick_an_image_from_srcset(img['srcset'],url) # Call handler function for srcset
+        # #    elif 'data-srcset' in img.attrs:
+        # #        debug(f"Picking an image from srcset={img['data-srcset']}")
+        # #        image_url = pick_an_image_from_srcset(img['data-srcset'],url) # Call handler function for srcset
+        #     elif 'src' in img.attrs and img['src'] != '': # this is a simple <img src=...> tag
+        #         image_url = img['src']
+        #  #   else:
+        #         # Some sites use data-gl-src, data-gl-srcset, data-getimg, data-hi-res-src, data-full-url, full-src, and
+        #         # a variety of other non-standard alternatives to src and srcset in image tags. (Example: usatoday.com).
+        #         # So if we don't find src or srcset, we'll see if we can come up with something else before giving up.
+                
+        #     elif 'srcset="' in img_str:
+        #         image_url = pick_an_image_from_srcset(after_substr(img_str,'srcset="').split('"')[0],url)
+        #     if ' src="' in img_str:
+        #         image_url = after_substr(img_str,' src="').split('"')[0]
+        #     elif 'src="' in img_str:
+        #         image_url = after_substr(img_str,'src="').split('"')[0]
+        #     elif 'url="' in img_str:
+        #         image_url = after_substr(img_str,'url="').split('"')[0]
+        #     elif 'img="' in img_str:
+        #         image_url = after_substr(img_str,'img="').split('"')[0]
+        #     else:
+        #         debug(f"Skipping img in img_tags loop (img={img})")
+        #         continue  # Skip this image tag since it has no 'src' or 'srcset' attributes
+
             # Store the image at 'image_url' in Images table, with search data
-            debug(f"In img_tags loop, about to store img_url = {image_url}")
+            debug(f"In img_tags loop, about to store img_url = {image_url} from img tag={img}")
             store_image_from_url_in_database(search,image_url,url)
             
         debug(f"Done with img_tags loop and beautiful soup scraping, about to call scrape_page+with_webdriver")
@@ -407,24 +521,24 @@ def scrape_web_page(request):
         return redirect('success', id=search.id)
     return render(request, 'scrape_web_page.html')
 
+# The purpose of this function is to serve images to the client by retrieving the image object
+# from the database based on the provided `image_id`.
+# It then returns an HTTP response with the image data and appropriate content_type, allowing the
+# client to display the image in the browser or use it in other applications that consume image data.
 def myimage(request, image_id):
     image = Image.objects.get(pk=image_id)
     return HttpResponse(image.image, content_type="image/jpeg")
 
+# The purpose of this function is to retrieve images from the database, process them by extracting
+# filenames and generating data URIs, and render a template to display the images in a web page.
 def show_all_images(request):
     images = Image.objects.all()
-    for image in images:
-        img_data = image.image
-       
-        # sometimes the url contains ? and other extraneous data after the filename, so strip everything after ?
-        filename = image.url.split('?')[0]
-        # split remaining url by / and pick the last (-1) element, which is just the filename
-        filename = filename.split('/')[-1]
-        image.filename = filename
-        image.image_data_uri = f"data:{image.content_type};base64,{base64.b64encode(img_data).decode('utf-8')}"
+    images = add_template_data_to_image(images)
     return render(request, 'show_all_images.html', {'images': images}, )
 
-# Show past_search.html 
+# The purpose of this function is to retrieve past searches and images from the database,
+# adjust the timestamp to the local timezone, and render a template to display the searches
+# along with the number of images in a web page. 
 def past_searches(request):
     # Get all past searches, format local timestamp, and send to template
     try:
@@ -441,7 +555,40 @@ def past_searches(request):
         
     return render(request, 'past_searches.html', {'searches': searches, 'number_of_images': len(images)}) # Render list of searches to template
     
-# Show a page for a given past search, including its URL & timestamp, and images stored 
+# Takes an Image record retrieved from database, and adds two fields to each 
+# image record to display in the web page template:
+# * image.filename (extracted from the URL, minus the http & domain name.
+# * image.image_data_uri the image itself in data-formatted base64 encoding that
+#   can be displayed with an <img> tag in the template.
+def add_template_data_to_image(images):
+    max_filename_length = 60 # max filename we display
+    
+    for image in images:
+        if image.url.startswith("data"): 
+            # if starts with 'data:' instead of 'http:' or 'https:', just use url as a pseudo-filename
+            image.filename = image.url[:40] 
+        else:
+            # sometimes the url contains ? and other extraneous data after the filename, so strip everything after ?
+            filename = image.url.split('?')[0]
+            # split remaining url by / and pick the last (-1) element, which is just the filename
+            filename = filename.split('/')[-1]
+
+            # Make a max-60-character filename to display as caption to template.
+            # If it's say 100 characters ending in .jpeg, it will truncate the part before 
+            # and add (...) but keep the .jpeg. If it doesn't have a period in it, it just
+            # truncates it 5 characters before the size limit and adds (...).
+            if filename.rfind('.') == -1 and len(filename) > max_filename_length: # if no period in filename & > max chars, truncate to 26 chars + '(...)'
+                image.filename = filename[:max_filename_length-5] + '(...)'
+            elif filename.rfind('.') > 0 and len(filename) > max_filename_length: # if period & prefix of filename is > max chars, truncate prefix + '(...)'
+                image.filename = filename.split('.')[0][:max_filename_length-9] + '(...).' + after_substr(filename,'.')[:4]
+            else:
+                image.filename = filename
+            
+        image.image_data_uri = f"data:{image.content_type};base64,{base64.b64encode(image.image).decode('utf-8')}"
+
+    return images
+
+# This function handles the display of a single past search, showing the search details and a list of images that were returned in the search results.
 def past_search(request):
     try:
         # Check if an id parameter was sent (e.g. http://127.0.0.1:8000/past_searches?id=5) 
@@ -461,22 +608,11 @@ def past_search(request):
 
     images = Image.objects.filter(search_id=search_id_for_page)
 
-    for image in images:
-        img_data = image.image
-        # sometimes the url contains ? and other extraneous data after the filename, so strip everything after ?
-        filename = image.url.split('?')[0]
-        # split remaining url by / and pick the last (-1) element, which is just the filename
-        filename = filename.split('/')[-1]
-        image.full_filename = filename # send full filename, and a max-30-character filename, to template
-        if filename.rfind('.') == -1 and len(filename) > 30: # if no period in filename & > 30 chars, truncate to 26 chars + '(...)'
-            image.filename = filename[:25] + '(...)'
-        elif filename.rfind('.') > 0 and len(filename) > 30: # if period & prefix of filename is > 30 chars, truncate prefix + '(...)'
-            image.filename = filename.split('.')[0][:21] + '(...).' + filename.split('.')[1][:4]
-        else:
-            image.filename = filename
-        image.image_data_uri = f"data:{image.content_type};base64,{base64.b64encode(img_data).decode('utf-8')}"
+    # Add filename and image_data_uri attribute for each image to send to success.html
+    images = add_template_data_to_image(images)
+
+    # Return past_search.html with data to render it (images, search.url, search_timestamp_formatted) 
     debug(f"Returning past_search.html")
-    # return render(request, 'past_search.html', {'images': images}, {'search_url': search_url})
     return render(request, 'past_search.html', {'images': images, 'search_url': search.url, 'search_timestamp': search.timestamp_local})
 
 # Show success.html after storing images for user's requested URL
@@ -497,21 +633,8 @@ def success(request, id):
     # Retrieve all the Image records with the id of the search we just performed
     images = Image.objects.filter(search_id=id)
 
-    # Set a filename and image_data_uri attribute for each image to send to success.html
-    for image in images:
-        img_data = image.image
-        # sometimes the url contains ? and other extraneous data after the filename, so strip everything after ?
-        filename = image.url.split('?')[0]
-        # split remaining url by / and pick the last (-1) element, which is just the filename
-        filename = filename.split('/')[-1]
-        image.full_filename = filename # send full filename, and a max-30-character filename, to template
-        if filename.rfind('.') == -1 and len(filename) > 30: # if no period in filename & > 30 chars, truncate to 26 chars + '(...)'
-            image.filename = filename[:25] + '(...)'
-        elif filename.rfind('.') > 0 and len(filename) > 30: # if period & prefix of filename is > 30 chars, truncate prefix + '(...)'
-            image.filename = filename.split('.')[0][:21] + '(...).' + filename.split('.')[1][:4]
-        else:
-            image.filename = filename
-        image.image_data_uri = f"data:{image.content_type};base64,{base64.b64encode(img_data).decode('utf-8')}"
+    # Add filename and image_data_uri attribute for each image to send to success.html
+    images = add_template_data_to_image(images)
 
     # Return success.html with data to render it (images, search.url, search_timestamp_formatted) 
     debug(f"Returning success.html")

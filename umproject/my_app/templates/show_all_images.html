@@ -112,7 +112,7 @@
   {% for img in images %}
     {% if img.content_type %}
     <div class="image-container">
-      <img src="{{ img.image_data_uri }}" alt="{{ img.filename }}" title="{{ img.filename }}"><br>
+      <img src="{{ img.image_data_uri }}" alt="{{ img.filename }}" title="{{ img.url }}"><br>
     </div>
     {% endif %}
   {% empty %}
