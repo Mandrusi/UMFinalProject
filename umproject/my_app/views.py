@@ -4,7 +4,6 @@ import sys # for debug flushes
 import math # used for floor() and ceil() functions
 import time # used for time.sleep() to delay after loading web page
 import hashlib # used for a checksum stored in the Image table
-import re # used to parse srcset using a regular expression
 from io import BytesIO # Handle binary data to save img_data to database
 from .models import Image, Search # Search and Image models (objects for database)
 from PIL import Image as PILImage # For raster based image manipulation
@@ -77,16 +76,8 @@ def pick_an_image_from_srcset(image_srcset, page_url):
 
     debug(f"In pick_an_image_from_srcset(), image_srcset={image_srcset} page_url={page_url}")
 
-    # sizes = image_srcset.split(',')
-    # The split didn't work if srcset URLs contain comma, like 
-    #  "https://www.google.com?TYPE=1,DIR 1x, https://www.google.com?TYPE=2,DIR 2x"
-    # That's why this findall is used with a wicked regular expression.  
-    sizes = re.findall(r'([^,\s][^,]*[^,\s])\s+([^,\s][^,]*[^,\s])', image_srcset)
-
     biggest_size = 0
     biggest_url = None
-
-    #debug(f"in pick_an_image_from_srcset, image_srcset={image_srcset}, page_url={page_url}")
 
     # Brute force way to parse image_srcset, first break as left and right of ' ',
     # then if there's another comma, take just the portion right of the comma.
@@ -117,7 +108,6 @@ def pick_an_image_from_srcset(image_srcset, page_url):
         debug(f"None of the images were suitable")
         return
 
-#    img['src'] = biggest_url
     img_url = biggest_url
     debug(f"Chose best size from srcset, img_url = {img_url}, size={biggest_size}")
     return img_url
@@ -136,7 +126,7 @@ def retrieve_and_validate_img_handler(img_url):
     # Don't store images in database if over max size, currently 1024576.
     # It can handle bigger, but may affect performance at some level,
     # and that seems like a reasonable limit.
-    maximum_size_to_save = 1024576
+    maximum_size_to_save = 10000000
 
     if img_url.split('/')[0] == 'data:image':
         # If img_url is simply data, like data:image/x-png;base64,iVBORw0KGgoAAAANSUh..., 
@@ -173,7 +163,7 @@ def retrieve_and_validate_img_handler(img_url):
         debug(f"retrieve_and_validate_img_handler() returning content_type: {content_type}")
         return response.content, content_type
 
-# The purpose of this functtion is to handle the saving of image data into the database. It converts
+# The purpose of this function is to handle the saving of image data into the database. It converts
 # the image data into a `BytesIO` object, generates a unique identifier for the image, creates an `Image`
 # object, and saves it to the database.
 def database_save_handler(image_data, search, img_url, content_type):
@@ -217,24 +207,7 @@ def store_image_from_url_in_database(search,image_url,page_url):
     if response_content:
         if len(image_url) > 255:
             image_url = image_url[:255]
-        database_save_handler(response_content, search, image_url, content_type) 
-
-# 1337
-# https://www.google.com/images/branding/googlelogo/...
-# image/png
-# 2023-05-16 21:15:30.812802
-# 39
-# [BLOB - 13.2 KiB]
-	
-# 1339
-# data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABUA...
-# b'image/png'
-# 2023-05-16 21:15:31.120807
-# 39
-# [BLOB - 315 B]
-
-
-
+        database_save_handler(response_content, search, image_url, content_type)
     return
 
 # The purpose of this function is to use a webdriver to load a web page, capture a screenshot of the page,
@@ -381,7 +354,7 @@ def scrape_page_with_webdriver(search,url):
                 database_save_handler(image_data, search, '(screen shot)', 'image/x-png')
 
                 # Note to self:
-                # To print first 40 characters of binary data for debugging, b64encode it: 
+                # To print first 40 characters of binary data for debugging, b64encode it:
                 # {base64.b64encode(screen_cropped)[:40]}
                 # {(base64.b64decode(screen_cropped.make_blob())[:40])}
 
@@ -482,33 +455,6 @@ def scrape_web_page(request):
 
             image_url = pick_an_image_from_srcset(multi_image_url,url)
             
-
-        #     if 'srcset' in img.attrs and img['srcset'] != '':
-        #         image_url = pick_an_image_from_srcset(img['srcset'],url) # Call handler function for srcset
-        # #    elif 'data-srcset' in img.attrs:
-        # #        debug(f"Picking an image from srcset={img['data-srcset']}")
-        # #        image_url = pick_an_image_from_srcset(img['data-srcset'],url) # Call handler function for srcset
-        #     elif 'src' in img.attrs and img['src'] != '': # this is a simple <img src=...> tag
-        #         image_url = img['src']
-        #  #   else:
-        #         # Some sites use data-gl-src, data-gl-srcset, data-getimg, data-hi-res-src, data-full-url, full-src, and
-        #         # a variety of other non-standard alternatives to src and srcset in image tags. (Example: usatoday.com).
-        #         # So if we don't find src or srcset, we'll see if we can come up with something else before giving up.
-                
-        #     elif 'srcset="' in img_str:
-        #         image_url = pick_an_image_from_srcset(after_substr(img_str,'srcset="').split('"')[0],url)
-        #     if ' src="' in img_str:
-        #         image_url = after_substr(img_str,' src="').split('"')[0]
-        #     elif 'src="' in img_str:
-        #         image_url = after_substr(img_str,'src="').split('"')[0]
-        #     elif 'url="' in img_str:
-        #         image_url = after_substr(img_str,'url="').split('"')[0]
-        #     elif 'img="' in img_str:
-        #         image_url = after_substr(img_str,'img="').split('"')[0]
-        #     else:
-        #         debug(f"Skipping img in img_tags loop (img={img})")
-        #         continue  # Skip this image tag since it has no 'src' or 'srcset' attributes
-
             # Store the image at 'image_url' in Images table, with search data
             debug(f"In img_tags loop, about to store img_url = {image_url} from img tag={img}")
             store_image_from_url_in_database(search,image_url,url)
@@ -562,7 +508,7 @@ def past_searches(request):
 #   can be displayed with an <img> tag in the template.
 def add_template_data_to_image(images):
     max_filename_length = 60 # max filename we display
-    
+        
     for image in images:
         if image.url.startswith("data"): 
             # if starts with 'data:' instead of 'http:' or 'https:', just use url as a pseudo-filename
@@ -577,7 +523,9 @@ def add_template_data_to_image(images):
             # If it's say 100 characters ending in .jpeg, it will truncate the part before 
             # and add (...) but keep the .jpeg. If it doesn't have a period in it, it just
             # truncates it 5 characters before the size limit and adds (...).
-            if filename.rfind('.') == -1 and len(filename) > max_filename_length: # if no period in filename & > max chars, truncate to 26 chars + '(...)'
+            if filename == '':
+                image.filename = '(no filename)' # if there was no text between the last / in the url and the ?, just include the whole url
+            elif filename.rfind('.') == -1 and len(filename) > max_filename_length: # if no period in filename & > max chars, truncate to 26 chars + '(...)'
                 image.filename = filename[:max_filename_length-5] + '(...)'
             elif filename.rfind('.') > 0 and len(filename) > max_filename_length: # if period & prefix of filename is > max chars, truncate prefix + '(...)'
                 image.filename = filename.split('.')[0][:max_filename_length-9] + '(...).' + after_substr(filename,'.')[:4]
@@ -588,7 +536,7 @@ def add_template_data_to_image(images):
 
     return images
 
-# This function handles the display of a single past search, showing the search details and a list of images that were returned in the search results.
+# Show a page for a given past search, including its URL & timestamp, and images stored 
 def past_search(request):
     try:
         # Check if an id parameter was sent (e.g. http://127.0.0.1:8000/past_searches?id=5) 
