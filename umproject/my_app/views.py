@@ -126,7 +126,7 @@ def retrieve_and_validate_img_handler(img_url):
     # Don't store images in database if over max size, currently 1024576.
     # It can handle bigger, but may affect performance at some level,
     # and that seems like a reasonable limit.
-    maximum_size_to_save = 10000000
+    maximum_size_to_save = 2000000
 
     if img_url.split('/')[0] == 'data:image':
         # If img_url is simply data, like data:image/x-png;base64,iVBORw0KGgoAAAANSUh..., 
