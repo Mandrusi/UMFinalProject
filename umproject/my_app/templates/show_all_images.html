@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block title %}
+  Show All Images
+{% endblock %}
+
+{% block top_of_page %}
+  <h1>Show All Images</h1>
+{% endblock %}
+{% block head %}
+<style>
+    html, body, h1, h2, section, div {
+        margin:0;
+        padding:0;
+    }
+
+    body {
+        max-width:77rem;
+        padding:clamp(0.5rem, 2vw, 2rem);
+        margin:auto;
+    }
+
+    .gallery {
+        margin-top:5px;
+    }
+
+    .gallery > div {
+        columns:11;
+        gap:1.25rem;
+        padding-top:1.25rem;
+    }
+
+    .gallery img {
+        display:block;
+        width:100%;
+        margin-bottom:1.25rem;
+        height:100%;
+    }
+    @media (max-width:70rem) {
+      .gallery > div {
+        columns:10;
+      }
+    }
+    @media (max-width:63rem) {
+      .gallery > div {
+        columns:9;
+      }
+    }
+    @media (max-width:54rem) {
+      .gallery > div {
+        columns:8;
+      }
+    }
+    @media (max-width:49rem) {
+      .gallery > div {
+        columns:7;
+      }
+    }
+    @media (max-width:42rem) {
+      .gallery > div {
+        columns:6;
+      }
+    }
+
+    @media (max-width:35rem) {
+        .gallery > div {
+        columns:5;
+        }
+    }
+
+    @media (max-width:28rem) {
+        .gallery > div {
+        columns:4;
+        }
+    }
+    @media (max-width:21rem) {
+        .gallery > div {
+        columns:3;
+        }
+    }
+
+    @media (max-width:14rem) {
+        .gallery > div {
+        columns:2;
+        }
+    }
+
+    .image-container {
+        display: inline-block;
+        width: 100%;
+    }
+
+    .image-container img {
+        display: block;
+        width: 100%;
+        margin: 0 auto;
+    }
+
+    .image-container .caption {
+        display: block;
+        margin-top: 5px;
+        transform: skew(-6deg);
+        font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+  
+{% block content %}
+<section class="gallery">
+  <div>
+  {% for img in images %}
+    {% if img.content_type %}
+    <div class="image-container">
+      <img src="{{ img.image_data_uri }}" alt="{{ img.filename }}" title="{{ img.url }}"><br>
+    </div>
+    {% endif %}
+  {% empty %}
+    <p>No images found</p>
+  {% endfor %}
+</div>
+
+</section>
+{% endblock %}

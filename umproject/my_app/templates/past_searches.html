@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block title %}
+  Past Web Scrapes
+{% endblock %}
+
+{% block top_of_page %}
+  <h1>Past Web Scrapes</h1>
+{% endblock %}
+
+{% block content %}
+ 
+  <table>
+    <tr>
+      <td style="padding-right: 12px; font-weight: 600;">
+          Pages scraped:
+      </td>
+      <td style="color: #CCCCCC;">
+          {{ searches|length }}
+      </td>
+    </tr>
+     <tr>
+        <td style="padding-right: 8px; font-weight: 600;">
+            Images archived:
+        </td>
+        <td style="color: #CCCCCC;">
+            {{ number_of_images }}
+        </td>
+    </tr>
+  </table>
+  <table>
+    <tr>
+      <td>
+        <ul>
+          {% for search in searches %}
+            <li>
+              <a href="http://127.0.0.1:8000/past_search.html?id={{ search.id }}">{{ search.url }}</a>
+              {{ search.timestampadjuster }}
+            </li>
+          {% endfor %}
+        </ul>
+      </td>
+    </tr>  
+  </table>
+
+{% endblock %}

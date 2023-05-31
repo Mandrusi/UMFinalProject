@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}
+  Home
+{% endblock %}
+
+{% block head %}
+<style>
+#above-footer {
+  position: absolute;
+  bottom: 50px; /* Adjust this value as needed */
+  left: 0;
+  width: 100%;
+  color: white
+  background-color: #000000;
+  padding: 20px;
+  text-align: center;
+}
+</style>
+{% endblock %}
+
+{% block top_of_page %}
+  <h1>Home</h1>
+{% endblock %}
+
+{% block content %}
+
+<table>
+  <tr>
+    <td style="padding-right: 12px; font-weight: 600;">
+      Pages scraped:
+    </td>
+    <td style="color: #CCCCCC;">
+      {{ number_of_searches }}
+    </td>
+  </tr>
+  <tr>
+    <td style="padding-right: 8px; font-weight: 600;">
+      Images archived:
+    </td>
+    <td style="color: #CCCCCC;">
+      {{ number_of_images }}
+    </td>
+  </tr>
+</table>
+
+<section id="above-footer">
+  <!-- Content to be displayed above the footer -->
+  <table><tr><td width="120">
+    <img src="/static/favicon/android-chrome-192x192.png" width="96" height="96">
+  </td><td align="left">
+    <h3>Mark Andrusiak</h3>
+    <p>Webscraping app using Django/MySQL for job candidacy at Umich's ITS/CAI, May 2023</p>
+  
+  </td></tr></table>
+</section>
+{% endblock %}

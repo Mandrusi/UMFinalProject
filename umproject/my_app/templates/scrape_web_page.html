@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block title %}
+  Scrape Web Page
+{% endblock %}
+
+{% block top_of_page %}
+  <h1>Scrape Web Page</h1>
+{% endblock %}
+
+{% block content %}
+    <form method="POST">
+        {% csrf_token %}
+        <label for="url"><b>Enter a URL:</b></label>
+        <input type="text" name="url" id="url" required>
+        <button type="submit">Search</button>
+    </form>
+    <br>
+    This page will update when scraping is complete.<br>
+    It may take a couple minutes for image-heavy web pages. 
+{% endblock %}
+
+
+
+
+

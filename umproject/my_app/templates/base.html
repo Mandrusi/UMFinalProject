@@ -1,0 +1,53 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <style>
+      body {
+        Font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+      }
+      .footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;    
+        width: 100%;
+        color: white;
+        background-color: #333333;
+        padding: 5px;
+        text-align: center;
+      }
+    </style>
+    <title>
+      {% block title %}{% endblock %}
+    </title>
+    <link rel="icon" type="image/x-icon" href="{% static 'favicon/favicon-16x16.png' %}" sizes="16x16">
+    <link rel="icon" type="image/png" href="{% static 'favicon/favicon-32x32.png' %}" sizes="32x32">
+    <link rel="icon" type="image/png" href="{% static 'favicon/favicon.ico' %}" sizes="48x48">
+    <link rel="icon" type="image/png" href="{% static 'favicon/apple-touch-icon.png' %}" sizes="180x180">
+    <link rel="icon" type="image/png" href="{% static 'favicon/android-chrome-192x192' %}" sizes="192x192">
+    <link rel="icon" type="image/png" href="{% static 'favicon/android-chrome-512x512' %}" sizes="512x512">
+    {% block head %}{% endblock %}
+  </head>
+  <body style="background-color: black; color: white;">
+
+  <nav>
+      {% block top_of_page %}{% endblock %}
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/scrape_web_page/">Scrape web page</a></li>
+        <li><a href="/past_searches/">Show all scrapes</a></li>
+        <li><a href="/show_all_images/">Show all images</a></li>
+      </ul>
+    </nav>
+
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+
+    <div class="footer">
+      &copy; 2023 Mark Andrusiak
+    </div>
+  </body>
+</html>
